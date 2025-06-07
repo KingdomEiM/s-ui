@@ -1,40 +1,32 @@
-# Use build args for target OS/Arch
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
-
-# Builder stage: compile Go binary
-FROM --platform=${TARGETOS}/${TARGETARCH} golang:1.20 AS builder
+# Builder stage: compile Go binary for host architecture
+FROM golang:1.20 AS builder
 WORKDIR /build
 
-# Clone repo and build
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends git && \
-    rm -rf /var/lib/apt/lists/*
+# Clone and build
 RUN git clone https://github.com/alireza0/s-ui.git .
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -ldflags="-s -w" -o s-ui main.go
+RUN go build -ldflags="-s -w" -o s-ui main.go
 
-# Runtime stage: minimal image
-FROM --platform=${TARGETOS}/${TARGETARCH} debian:11-slim
+# Runtime image
+FROM debian:11-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install runtime dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates && \
+    apt-get install -y --no-install-recommends ca-certificates git && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy compiled binary
+# Copy binary
 COPY --from=builder /build/s-ui /usr/local/bin/s-ui
 
-# Create data directories
+# Prepare directories
 RUN mkdir -p /usr/local/s-ui/db /root/cert
 WORKDIR /usr/local/s-ui
 
 # Expose ports
 EXPOSE 2095 2096 80 443
 
-# Persist database and certificates
+# Persist data
 VOLUME ["/usr/local/s-ui/db", "/root/cert"]
 
-# Run S-UI
+# Run
 ENTRYPOINT ["/usr/local/bin/s-ui"]
