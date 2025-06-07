@@ -1,29 +1,38 @@
-# Start from Debian stable
-FROM debian:11-slim
+# Multi-stage build for S-UI
 
-ENV DEBIAN_FRONTEND=noninteractive
+FROM golang:1.20 AS builder
+WORKDIR /build
 
-# Install dependencies
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       curl ca-certificates \
+    && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and extract the latest AMD64 S-UI binary
-RUN curl -sL https://github.com/alireza0/s-ui/releases/latest/download/s-ui_linux_amd64.tar.gz \
-    | tar -xz -C /usr/local/bin
+# Clone and compile
+RUN git clone https://github.com/alireza0/s-ui.git .
+RUN go build -ldflags="-s -w" -o s-ui main.go
 
-# Create data directories
+# Runtime image
+FROM debian:11-slim
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install CA certificates
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy built binary
+COPY --from=builder /build/s-ui /usr/local/bin/s-ui
+
+# Create data dirs
 RUN mkdir -p /usr/local/s-ui/db /root/cert
 
-# Set working directory
 WORKDIR /usr/local/s-ui
 
 # Expose ports
 EXPOSE 2095 2096 80 443
 
-# Mount volumes for database and certificates
+# Persist DB and certs
 VOLUME ["/usr/local/s-ui/db", "/root/cert"]
 
-# Run S-UI binary
+# Default command
 ENTRYPOINT ["/usr/local/bin/s-ui"]
