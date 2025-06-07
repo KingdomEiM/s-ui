@@ -1,39 +1,29 @@
-# Base image with systemd support
+# Start from Debian stable
 FROM debian:11-slim
 
-# Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install required packages including systemd
+# Install dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       git curl ca-certificates systemd \
+       curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a dedicated user for S-UI
-RUN useradd -m -s /bin/bash suiuser
+# Download and extract the latest AMD64 S-UI binary
+RUN curl -sL https://github.com/alireza0/s-ui/releases/latest/download/s-ui_linux_amd64.tar.gz \
+    | tar -xz -C /usr/local/bin
+
+# Create data directories
+RUN mkdir -p /usr/local/s-ui/db /root/cert
 
 # Set working directory
 WORKDIR /usr/local/s-ui
 
-# Copy entire repository contents
-COPY . .
-
-# Ensure installation and service scripts are executable
-RUN chmod +x install.sh runSUI.sh s-ui.sh
-
-# Run the installer script
-RUN bash install.sh
-
-# Enable the s-ui systemd service
-RUN systemctl enable s-ui
-
-# Expose necessary ports
+# Expose ports
 EXPOSE 2095 2096 80 443
 
-# Persist database and certificate directories
+# Mount volumes for database and certificates
 VOLUME ["/usr/local/s-ui/db", "/root/cert"]
 
-# Use systemd as entrypoint
-STOPSIGNAL SIGRTMIN+3
-CMD ["/sbin/init"]
+# Run S-UI binary
+ENTRYPOINT ["/usr/local/bin/s-ui"]
