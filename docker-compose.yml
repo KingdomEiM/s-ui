@@ -1,22 +1,22 @@
----
+version: '3.8'
 services:
   s-ui:
-    image: alireza7/s-ui
+    image: alpine:3.18
     container_name: s-ui
-    hostname: "s-ui"
-    volumes:
-      - "./db:/app/db"
-      - "./cert:/app/cert"
-    tty: true
-    restart: unless-stopped
     ports:
-      - "2095:2095"
-      - "2096:2096"
-    networks:
-      - s-ui
-    entrypoint: "./entrypoint.sh"
-
-networks:
-  s-ui:
-    driver: bridge
-  
+      - "2095:2095"   # Map host port 2095 to container port 2095
+      # - "2096:2096" # Uncomment if you need additional ports
+      # - "80:80"     # Uncomment if using HTTP
+      # - "443:443"   # Uncomment if using HTTPS with certs
+    volumes:
+      - ./db:/usr/local/s-ui/db        # Persist database
+      - ./cert:/root/cert              # Persist certificates
+    working_dir: /usr/local/s-ui
+    command: >
+      sh -c "
+        apk add --no-cache git bash curl ca-certificates &&
+        git clone https://github.com/alireza0/s-ui.git . &&
+        chmod +x install.sh runSUI.sh s-ui.sh &&
+        bash install.sh &&
+        ./runSUI.sh
+      "
