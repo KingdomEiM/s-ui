@@ -4,10 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        TARGETOS: linux
-        TARGETARCH: ${TARGETARCH:-amd64}
-    platform: linux/${TARGETARCH:-amd64}
+    image: s-ui-custom
     container_name: s-ui
     ports:
       - "2095:2095"
